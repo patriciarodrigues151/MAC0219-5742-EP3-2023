@@ -67,12 +67,41 @@ void checkErrors(cudaError_t err, const char *msg) {
 
 // Kernel CUDA para alteracao do hue
 // Voce deve modificar essa funcao no EP3
-__global__ void modify_hue_kernel(png_bytep d_image,
-                                  int width,
-                                  int height,
-                                  double *A) {
+__global__ void modify_hue_kernel(png_bytep d_image, int width, int height, double *A) {
     // SEU CODIGO DO EP3 AQUI
+
+    //calcula coordenadas do pixel para a thread CUDA
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idy = blockIdx.y * blockDim.y + threadIdx.y;
+
+    //caso a thread esteja nos limites válidos da imagem
+    if(idx < width && idy < height){
+        //indice do pixel no vetor 'd_image', 3 canais RBG
+        int pixel_idx = (idy * width + idx) * 3;
+        //valores são lidos e normalizados no intervalo [0, 1], / 255
+        double r = d_image[pixel_idx] / 255.0;
+        double g = d_image[pixel_idx + 1] / 255.0;
+        double b = d_image[pixel_idx + 2] / 255.0;
+
+        //novos valores de RGB
+
+        double novo_r = r * d_A[0] + g * d_A[1] + b * d_A[2];
+        double novo_g = r * d_A[3] + g * d_A[4] + b * d_A[5];
+        double novo_b = r * d_A[6] + g * d_A[7] + b * d_A[8];
+
+        //min e max garantem que os novos valores estejam dentro do intervalo [0, 1]
+        novo_r = fmin(fmax(novo_r, 0.0), 1.0);
+        novo_g = fmin(fmax(novo_g, 0.0), 1.0);
+        novo_b = fmin(fmax(novo_b, 0.0), 1.0);
+
+        //após garantir que os valores estão no intervalo, os valores são normalizados de volta para o intervalo [0, 255] e arredondando para o valor inteiro mais proximo e armazenados na imagem de saída (d_image)
+        d_image[pixel_idx] = (png_byte)round(novo_r * 255.0);
+        d_image[pixel_idx + 1] = (png_byte)round(novo_g * 255.0);
+        d_image[pixel_idx + 2] = (png_byte)round(novo_b * 255.0);
+    }
 }
+
+
 
 // Altera a matiz (hue) de uma imagem em paralelo
 // Voce deve modificar essa funcao no EP3
