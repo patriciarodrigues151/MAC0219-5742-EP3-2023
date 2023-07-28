@@ -78,7 +78,7 @@ __global__ void modify_hue_kernel(png_bytep d_image, int width, int height, doub
     if(idx < width && idy < height){
         //indice do pixel no vetor 'd_image', 3 canais RBG
         int pixel_idx = (idy * width + idx) * 3;
-        //valores são lidos e normalizados no intervalo [0, 1], / 255
+        //valores são lidos e normalizados no  intervalo [0, 1], / 255
         double r = d_image[pixel_idx] / 255.0;
         double g = d_image[pixel_idx + 1] / 255.0;
         double b = d_image[pixel_idx + 2] / 255.0;
