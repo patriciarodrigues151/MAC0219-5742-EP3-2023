@@ -85,9 +85,9 @@ __global__ void modify_hue_kernel(png_bytep d_image, int width, int height, doub
 
         //novos valores de RGB
 
-        double novo_r = r * d_A[0] + g * d_A[1] + b * d_A[2];
-        double novo_g = r * d_A[3] + g * d_A[4] + b * d_A[5];
-        double novo_b = r * d_A[6] + g * d_A[7] + b * d_A[8];
+        double novo_r = r * A[0] + g * A[1] + b * A[2];
+        double novo_g = r * A[3] + g * A[4] + b * A[5];
+        double novo_b = r * A[6] + g * A[7] + b * A[8];
 
         //min e max garantem que os novos valores estejam dentro do intervalo [0, 1]
         novo_r = fmin(fmax(novo_r, 0.0), 1.0);
@@ -108,7 +108,7 @@ __global__ void modify_hue_kernel(png_bytep d_image, int width, int height, doub
 // Função para calcular a matriz A com base no desvio de matiz (hue_diff)
 
 //SEU CODIGO AQUI
-__device__ void calculate_A(double *A, double hue_diff) {
+void calculate_A(double *A, double hue_diff) {
     double c = cos(2 * M_PI * hue_diff);
     double s = sin(2 * M_PI * hue_diff);
     double one_third = 1.0 / 3.0;
@@ -127,7 +127,7 @@ __device__ void calculate_A(double *A, double hue_diff) {
 }
 
 // Função para alocar memória no dispositivo (GPU) e copiar os dados
-void allocate_and_copy(double *h_A, png_bytep h_image, int width, int height, size_t image_size, double hue_diff, double **d_A, png_bytep *d_image) {
+void allocate_and_copy(double *h_A, png_bytep h_image, int width, int height, size_t image_size, double **d_A, png_bytep *d_image) {
     // Aloca memória para a matriz A no dispositivo (GPU)
     cudaMalloc((void **)d_A, sizeof(double) * 9);
     // Copia os dados da matriz A do host para o dispositivo
