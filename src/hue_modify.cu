@@ -1,3 +1,9 @@
+// EP3 - MAC219 - Programação Concorrente e Paralela
+// Integrantes:
+// Patrícia Rodrigues, NUSP: 11315590
+// Sabrina Araújo da Silva, NUSP: 12566182
+// Samantha Miyahira, NUSP: 11797261
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
