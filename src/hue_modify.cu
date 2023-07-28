@@ -105,46 +105,71 @@ __global__ void modify_hue_kernel(png_bytep d_image, int width, int height, doub
 
 // Altera a matiz (hue) de uma imagem em paralelo
 // Voce deve modificar essa funcao no EP3
-void modify_hue(png_bytep h_image,
-                int width,
-                int height,
-                size_t image_size,
-                double hue_diff) {
-    // SEU CODIGO DO EP3 AQUI
+// Função para calcular a matriz A com base no desvio de matiz (hue_diff)
 
-    // Voce deve completar os ... com os argumentos corretos e
-    // indicar dimensoes apropriadas para o grid e os blocos
-    // (blocos por grid e threads por bloco)
+//SEU CODIGO AQUI
+__device__ void calculate_A(double *A, double hue_diff) {
+    double c = cos(2 * M_PI * hue_diff);
+    double s = sin(2 * M_PI * hue_diff);
+    double one_third = 1.0 / 3.0;
+    double sqrt_third = sqrt(one_third);
 
-    // As mensagens nas chamadas de checkErrors, usadas pra debug,
-    // sao uma "dica" do que deve ser feito em cada chamada a funcoes CUDA
-
-    // cudaMalloc(...);
-    // checkErrors(cudaGetLastError(), "Alocacao da matriz A no device");
-
-    // cudaMemcpy(...);
-    // checkErrors(cudaGetLastError(), "Copia da matriz A para o device");
-
-    // cudaMalloc(...);
-    // checkErrors(cudaGetLastError(), "Alocacao da imagem no device");
-
-    // cudaMemcpy(...);
-    // checkErrors(cudaGetLastError(), "Copia da imagem para o device");
-
-    // // Determinar as dimensoes adequadas aqui
-    // dim3 dim_block(1, 1);
-    // dim3 dim_grid(1, 1);
-
-    // modify_hue_kernel<<<dim_grid, dim_block>>>
-    //     (...);
-    // checkErrors(cudaGetLastError(), "Lançamento do kernel");
-
-    // cudaMemcpy(...);
-    // checkErrors(cudaGetLastError(), "Copia da imagem para o host");
-
-    // cudaFree(...);
-    // cudaFree(...);
+    // Preenche a matriz A com os valores calculados a partir de hue_diff
+    A[0] = c + one_third * (1.0 - c);
+    A[1] = one_third * (1.0 - c) - sqrt_third * s;
+    A[2] = one_third * (1.0 - c) + sqrt_third * s;
+    A[3] = A[2];
+    A[4] = A[0];
+    A[5] = A[1];
+    A[6] = A[1];
+    A[7] = A[2];
+    A[8] = A[0];
 }
+
+// Função para alocar memória no dispositivo (GPU) e copiar os dados
+void allocate_and_copy(double *h_A, png_bytep h_image, int width, int height, size_t image_size, double hue_diff, double **d_A, png_bytep *d_image) {
+    // Aloca memória para a matriz A no dispositivo (GPU)
+    cudaMalloc((void **)d_A, sizeof(double) * 9);
+    // Copia os dados da matriz A do host para o dispositivo
+    cudaMemcpy(*d_A, h_A, sizeof(double) * 9, cudaMemcpyHostToDevice);
+
+    // Aloca memória para a imagem de entrada no dispositivo (GPU)
+    cudaMalloc((void **)d_image, image_size);
+    // Copia os dados da imagem do host para o dispositivo
+    cudaMemcpy(*d_image, h_image, image_size, cudaMemcpyHostToDevice);
+}
+
+// Função para copiar a imagem modificada de volta para o host (CPU) e liberar memória no dispositivo (GPU)
+void copy_back_and_free(png_bytep h_image, png_bytep d_image, size_t image_size) {
+    // Copia a imagem modificada do dispositivo para o host
+    cudaMemcpy(h_image, d_image, image_size, cudaMemcpyDeviceToHost);
+    // Libera a memória alocada no dispositivo
+    cudaFree(d_image);
+}
+
+
+// Função para modificar o matiz em paralelo usando CUDA
+void modify_hue(png_bytep h_image, int width, int height, size_t image_size, double hue_diff) {
+    double A[9];
+    calculate_A(A, hue_diff);
+
+    double *d_A;
+    png_bytep d_image;
+    allocate_and_copy(A, h_image, width, height, image_size, &d_A, &d_image);
+
+    // Configura as dimensões do grid e blocos para a chamada do kernel
+    dim3 dim_block(16, 16);
+    dim3 dim_grid((width + dim_block.x - 1) / dim_block.x, (height + dim_block.y - 1) / dim_block.y);
+
+    // Chama o kernel para modificar o matiz em paralelo
+    modify_hue_kernel<<<dim_grid, dim_block>>>(d_image, width, height, d_A);
+    cudaDeviceSynchronize();
+
+    // Copia a imagem modificada de volta para o host e libera a memória no dispositivo
+    copy_back_and_free(h_image, d_image, image_size);
+    cudaFree(d_A);
+}
+
 
 // Le imagem png de um arquivo de entrada para a memoria
 void read_png_image(const char *filename,
